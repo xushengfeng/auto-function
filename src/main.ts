@@ -147,20 +147,23 @@ function ai(m: aim, config: aiconfig) {
     };
 }
 
+type St = string[] | string;
+type testType = { input: St; output: Object };
+
 class def {
-    public input: string[] | string;
-    public output: string[] | string;
-    public script: string[] | string;
-    public test: { input: string[] | string; output: Object };
+    public input: St;
+    public output: St;
+    public script: St;
+    public test: testType | testType[];
     public aiText: string;
     public aiConfig: aiconfig;
 
     constructor(
         op: {
-            input?: string[] | string;
-            output?: string[] | string;
-            script: string[] | string;
-            test?: { input: string[] | string; output: Object };
+            input?: St;
+            output?: St;
+            script: St;
+            test?: testType | testType[];
         },
         aiop?: aiconfig
     ) {
@@ -188,16 +191,24 @@ class def {
             这是输出：${this.arrayToList(this.output)}
             每个输出后可能用冒号标出了其类型，以及相关注解`;
         text += `\n\n这是需求：${this.arrayToList(this.script)}`;
+        let test = [];
         if (this.test)
+            if (!Array.isArray(this.test)) {
+                test = [this.test];
+            } else {
+                test = this.test;
+            }
+        for (let t of test) {
             text += `这是测试样例，对于输入
-            \`\`\`${this.arrayToList(this.test.input)}\`\`\`
+            \`\`\`\n${this.arrayToList(t.input)}\n\`\`\`
             应当返回
-            \`\`\`\n${JSON.stringify(this.test.output)}\`\`\``;
+            \`\`\`\n${JSON.stringify(t.output)}\n\`\`\`\n`;
+        }
 
         return text;
     }
 
-    public run(input: string[] | string, ...arg: string[]) {
+    public run(input: St, ...arg: string[]) {
         let messages: aim = [];
         messages.push({ role: "system", content: { text: this.aiText } });
         messages.push({ role: "user", content: { text: this.arrayToList([input, arg].flat()) } });
