@@ -148,15 +148,20 @@ function ai(m: aim, config: aiconfig) {
 }
 
 class def {
-    public input: string[];
-    public output: string[];
-    public script: string[];
-    public test: { input: string; output: Object };
+    public input: string[] | string;
+    public output: string[] | string;
+    public script: string[] | string;
+    public test: { input: string[] | string; output: Object };
     public aiText: string;
     public aiConfig: aiconfig;
 
     constructor(
-        op: { input?: string[]; output?: string[]; script: string[]; test?: { input: string; output: Object } },
+        op: {
+            input?: string[] | string;
+            output?: string[] | string;
+            script: string[] | string;
+            test?: { input: string[] | string; output: Object };
+        },
         aiop?: aiconfig
     ) {
         this.input = op.input;
@@ -167,8 +172,9 @@ class def {
         this.aiText = this.getText();
     }
 
-    private arrayToList(arr: string[]): string {
-        return arr.map((i) => `- ${i}`).join("\n");
+    private arrayToList(arr: string[] | string): string {
+        if (Array.isArray(arr)) return arr.map((i) => `- ${i}`).join("\n");
+        else return arr;
     }
 
     public getText(): string {
@@ -181,19 +187,20 @@ class def {
             text += `\n
             这是输出：${this.arrayToList(this.output)}
             每个输出后可能用冒号标出了其类型，以及相关注解`;
-        text += `\n\n这是需求：${this.script}`;
+        text += `\n\n这是需求：${this.arrayToList(this.script)}`;
         if (this.test)
-            text += `这是测试样例，对于输入\`${this.test.input}\`，应当返回\`\`\`\n${JSON.stringify(
-                this.test.output
-            )}\`\`\``;
+            text += `这是测试样例，对于输入
+            \`\`\`${this.arrayToList(this.test.input)}\`\`\`
+            应当返回
+            \`\`\`\n${JSON.stringify(this.test.output)}\`\`\``;
 
         return text;
     }
 
-    public run(input: string) {
+    public run(input: string[] | string, ...arg: string[]) {
         let messages: aim = [];
         messages.push({ role: "system", content: { text: this.aiText } });
-        messages.push({ role: "user", content: { text: input } });
+        messages.push({ role: "user", content: { text: this.arrayToList([input, arg].flat()) } });
         return ai(messages, this.aiConfig);
     }
 }
