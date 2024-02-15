@@ -1,6 +1,6 @@
 {
     "name": "auto-fun",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "",
     "main": "./dist/autoFun.umd.js",
     "module": "./dist/autoFun.es.js",
