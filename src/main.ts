@@ -181,15 +181,15 @@ class def {
     }
 
     public getText(): string {
-        let text = `请你扮演一个TypeScript类，接受输出，根据需求，返回能被机器解析的JSON`;
+        let text = `请你扮演一个计算机函数，接受输出，根据需求，返回能被机器解析的JSON`;
         if (this.input)
             text += `\n
             这是输入的参数名：${this.arrayToList(this.input)}
-            每个参数名后可能用冒号标出了其类型，以及相关注解`;
+            每个参数名后可能用冒号以typescript类型模式标出了其类型，以及相关注解`;
         if (this.output)
             text += `\n
             这是输出：${this.arrayToList(this.output)}
-            每个输出后可能用冒号标出了其类型，以及相关注解`;
+            每个输出后可能用冒号以typescript类型模式标出了其类型，以及相关注解`;
         text += `\n\n这是需求：${this.arrayToList(this.script)}`;
         let test = [];
         if (this.test)
