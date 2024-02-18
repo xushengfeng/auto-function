@@ -6,6 +6,7 @@ type geminim = { parts: [{ text: string }]; role: "user" | "model" }[];
 type aiconfig = { type: "chatgpt" | "gemini"; key?: string; url?: string; option?: Object };
 
 let config: aiconfig;
+const system = `请你扮演一个计算机函数，接受输出，根据需求，返回能被机器解析的JSON`;
 
 function setConfig(_config: aiconfig) {
     config = _config;
@@ -157,22 +158,13 @@ class def {
     public test: testType | testType[];
     public aiText: string;
     public aiConfig: aiconfig;
-    public system = `请你扮演一个计算机函数，接受输出，根据需求，返回能被机器解析的JSON`;
+    public system = system;
 
-    constructor(
-        op: {
-            input?: Object;
-            output?: Object;
-            script: St;
-            test?: testType | testType[];
-        },
-        aiop?: aiconfig
-    ) {
+    constructor(op: { input?: Object; output?: Object; script: St; test?: testType | testType[] }) {
         this.input = op.input;
         this.output = op.output;
         this.script = op.script;
         this.test = op.test;
-        this.aiConfig = aiop ?? config;
         this.aiText = this.getText();
     }
 
@@ -211,7 +203,7 @@ class def {
 
     public run(input: Object | string) {
         let messages: aim = [];
-        messages.push({ role: "system", content: { text: this.system } });
+        messages.push({ role: "system", content: { text: system } });
         let inputObj = {};
         if (typeof input === "string") inputObj = { input: input };
         else inputObj = input;
@@ -219,8 +211,27 @@ class def {
             role: "user",
             content: { text: `定义函数：\n${this.getText()}\n输入${JSON.stringify(inputObj)}` },
         });
-        return ai(messages, this.aiConfig);
+        return ai(messages, config);
     }
 }
 
-export default { def, config: setConfig };
+function runList(functions: { fun: def; input: Object | string }[]) {
+    let messages: aim = [];
+    messages.push({ role: "system", content: { text: system } });
+    for (let f of functions) {
+        let inputObj = {};
+        if (typeof f.input === "string") inputObj = { input: f.input };
+        else inputObj = f.input;
+        messages.push({
+            role: "user",
+            content: { text: `定义函数：\n${f.fun.getText()}\n输入${JSON.stringify(inputObj)}` },
+        });
+    }
+    messages.push({
+        role: "user",
+        content: { text: "请返回一个JSON数组，数组中的每个元素是上述函数返回输出，请按顺序返回" },
+    });
+    return ai(messages, config);
+}
+
+export default { def, config: setConfig, runList };
