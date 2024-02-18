@@ -149,18 +149,19 @@ function ai(m: aim, config: aiconfig) {
 }
 
 type St = string[] | string;
-type testType = { input: Object; output: Object };
+type testType = { input: obj; output: obj };
+type obj = { [key: string]: string };
 
 class def {
-    public input: Object;
-    public output: Object;
+    public input: obj;
+    public output: obj;
     public script: St;
     public test: testType | testType[];
     public aiText: string;
     public aiConfig: aiconfig;
     public system = system;
 
-    constructor(op: { input?: Object; output?: Object; script: St; test?: testType | testType[] }) {
+    constructor(op: { input?: obj; output?: obj; script: St; test?: testType | testType[] }) {
         this.input = op.input;
         this.output = op.output;
         this.script = op.script;
@@ -201,7 +202,7 @@ class def {
         return text;
     }
 
-    public run(input: Object | string) {
+    public run(input: obj | string) {
         let messages: aim = [];
         messages.push({ role: "system", content: { text: system } });
         let inputObj = {};
@@ -215,7 +216,8 @@ class def {
     }
 }
 
-function runList(functions: { fun: def; input: Object | string }[]) {
+/** 合并多个fun，以减少并发请求，但对token数影响不大 */
+function runList(functions: { fun: def; input: obj | string }[]) {
     let messages: aim = [];
     messages.push({ role: "system", content: { text: system } });
     for (let f of functions) {
