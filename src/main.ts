@@ -6,7 +6,7 @@ type geminim = { parts: [{ text: string }]; role: "user" | "model" }[];
 type aiconfig = { type: "chatgpt" | "gemini"; key?: string; url?: string; option?: Object };
 
 let config: aiconfig;
-const system = `请你扮演一个计算机函数，接受输出，根据需求，返回能被机器解析的JSON`;
+const system = `请你扮演一个计算机函数，接受输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型`;
 
 function setConfig(_config: aiconfig) {
     config = _config;
@@ -176,15 +176,9 @@ class def {
 
     public getText(): string {
         let text = "";
-        if (this.input)
-            text += `\n
-            这是输入的参数名：${JSON.stringify(this.input)}
-            每个参数名后可能用冒号以typescript类型模式标出了其类型，以及相关注解`;
-        if (this.output)
-            text += `\n
-            这是输出模版：${JSON.stringify(this.output)}
-            每个输出后可能用冒号以typescript类型模式标出了其类型，以及相关注解`;
-        text += `\n\n这是需求：${this.arrayToList(this.script)}`;
+        if (this.input) text += `\n输入定义：${JSON.stringify(this.input)}`;
+        if (this.output) text += `\n输出模版：${JSON.stringify(this.output)}`;
+        text += `\n需求：${this.arrayToList(this.script)}`;
         let test = [];
         if (this.test)
             if (!Array.isArray(this.test)) {
@@ -193,10 +187,12 @@ class def {
                 test = this.test;
             }
         for (let t of test) {
-            text += `这是测试样例，对于输入
-            \`\`\`\n${JSON.stringify(t.input)}\n\`\`\`
-            应当返回
-            \`\`\`\n${JSON.stringify(t.output)}\n\`\`\`\n`;
+            text += [
+                `\n这是测试样例，对于输入`,
+                `\`\`\`\n${JSON.stringify(t.input)}\n\`\`\``,
+                `应当返回`,
+                `\`\`\`\n${JSON.stringify(t.output)}\n\`\`\``,
+            ].join("\n");
         }
 
         return text;
