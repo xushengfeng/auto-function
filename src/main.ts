@@ -149,7 +149,7 @@ function ai(m: aim, config: aiconfig) {
 }
 
 type St = string[] | string;
-type testType = { input: obj | string; output: obj };
+type testType = { input: obj | string; output: unknown };
 type obj = { [key: string]: obj | string | number };
 
 class def {
