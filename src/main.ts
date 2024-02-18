@@ -148,20 +148,21 @@ function ai(m: aim, config: aiconfig) {
 }
 
 type St = string[] | string;
-type testType = { input: St; output: Object };
+type testType = { input: Object; output: Object };
 
 class def {
-    public input: St;
-    public output: St;
+    public input: Object;
+    public output: Object;
     public script: St;
     public test: testType | testType[];
     public aiText: string;
     public aiConfig: aiconfig;
+    public system = `请你扮演一个计算机函数，接受输出，根据需求，返回能被机器解析的JSON`;
 
     constructor(
         op: {
-            input?: St;
-            output?: St;
+            input?: Object;
+            output?: Object;
             script: St;
             test?: testType | testType[];
         },
@@ -181,14 +182,14 @@ class def {
     }
 
     public getText(): string {
-        let text = `请你扮演一个计算机函数，接受输出，根据需求，返回能被机器解析的JSON`;
+        let text = "";
         if (this.input)
             text += `\n
-            这是输入的参数名：${this.arrayToList(this.input)}
+            这是输入的参数名：${JSON.stringify(this.input)}
             每个参数名后可能用冒号以typescript类型模式标出了其类型，以及相关注解`;
         if (this.output)
             text += `\n
-            这是输出：${this.arrayToList(this.output)}
+            这是输出模版：${JSON.stringify(this.output)}
             每个输出后可能用冒号以typescript类型模式标出了其类型，以及相关注解`;
         text += `\n\n这是需求：${this.arrayToList(this.script)}`;
         let test = [];
@@ -200,7 +201,7 @@ class def {
             }
         for (let t of test) {
             text += `这是测试样例，对于输入
-            \`\`\`\n${this.arrayToList(t.input)}\n\`\`\`
+            \`\`\`\n${JSON.stringify(t.input)}\n\`\`\`
             应当返回
             \`\`\`\n${JSON.stringify(t.output)}\n\`\`\`\n`;
         }
@@ -208,10 +209,16 @@ class def {
         return text;
     }
 
-    public run(input: St, ...arg: string[]) {
+    public run(input: Object | string) {
         let messages: aim = [];
-        messages.push({ role: "system", content: { text: this.aiText } });
-        messages.push({ role: "user", content: { text: this.arrayToList([input, arg].flat()) } });
+        messages.push({ role: "system", content: { text: this.system } });
+        let inputObj = {};
+        if (typeof input === "string") inputObj = { input: input };
+        else inputObj = input;
+        messages.push({
+            role: "user",
+            content: { text: `定义函数：\n${this.getText()}\n输入${JSON.stringify(inputObj)}` },
+        });
         return ai(messages, this.aiConfig);
     }
 }
