@@ -6,7 +6,7 @@ type geminim = { parts: [{ text: string }]; role: "user" | "model" }[];
 type aiconfig = { type: "chatgpt" | "gemini"; key?: string; url?: string; option?: Object };
 
 let config: aiconfig;
-const system = `请你扮演一个计算机函数，接受输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型`;
+const system = `请你扮演一个计算机函数，下面会给出若干函数定义，对于每个函数，你接受输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型。函数只返回输出模版JSON`;
 
 function setConfig(_config: aiconfig) {
     config = _config;
@@ -225,9 +225,17 @@ function runList(functions: { fun: def; input: obj | string }[]) {
             content: { text: `定义函数：\n${f.fun.getText()}\n输入${JSON.stringify(inputObj)}` },
         });
     }
+    const len = functions.length;
+    const t: string[] = [];
+    for (let i in functions) {
+        t.push(`返回${Number(i) + 1}`);
+    }
+    const tt = t.join(",");
     messages.push({
         role: "user",
-        content: { text: "请返回一个JSON数组，数组中的每个元素是上述函数返回输出，请按顺序返回" },
+        content: {
+            text: `上面的${len}个函数分别有${len}个输出，请返回一个JSON数组，数组按顺序包含上述${len}个函数的返回输出\n[${tt}]`,
+        },
     });
     return ai(messages, config);
 }
