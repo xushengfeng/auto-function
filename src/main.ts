@@ -69,7 +69,7 @@ function postAi(
     type: "chatgpt" | "gemini",
     tryN: number
 ) {
-    return new Promise(async (re: (json: Object) => void, rj: (err: Error) => void) => {
+    return new Promise(async (re: (json: unknown) => void, rj: (err: Error) => void) => {
         try {
             const t = await (
                 await fetch(url, {
@@ -115,7 +115,7 @@ function checkAiResult(
 ) {
     let text = getAiRaw(t, type);
     try {
-        return JSON.parse(text) as object;
+        return JSON.parse(text) as unknown;
     } catch (error) {
         if (tryN < 3) {
             return postAi(url, headers, con, signal, type, tryN + 1);
@@ -154,14 +154,14 @@ type obj = { [key: string]: obj | string | number };
 
 class def {
     public input: obj;
-    public output: obj;
+    public output: unknown;
     public script: St;
     public test: testType | testType[];
     public aiText: string;
     public aiConfig: aiconfig;
     public system = system;
 
-    constructor(op: { input?: obj; output?: obj; script: St; test?: testType | testType[] }) {
+    constructor(op: { input?: obj; output?: unknown; script: St; test?: testType | testType[] }) {
         this.input = op.input;
         this.output = op.output;
         this.script = op.script;
