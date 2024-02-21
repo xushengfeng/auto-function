@@ -213,7 +213,7 @@ class def {
 }
 
 /** 合并多个fun，以减少并发请求，但对token数影响不大 */
-function runList(functions: { fun: def; input: obj | string }[]) {
+async function runList(functions: { fun: def; input: obj | string }[]) {
     let messages: aim = [];
     messages.push({ role: "system", content: { text: system } });
     for (let f of functions) {
@@ -237,7 +237,18 @@ function runList(functions: { fun: def; input: obj | string }[]) {
             text: `上面的${len}个函数分别有${len}个输出，请返回一个JSON数组，数组按顺序包含上述${len}个函数的返回输出\n[${tt}]`,
         },
     });
-    return ai(messages, config);
+    const r = ai(messages, config);
+    const text = await r.result;
+    return parseRunList(text);
+}
+
+function parseRunList(input: any) {
+    if (!Array.isArray(input)) {
+        if (Object.keys(input).length === 1) {
+            return input[Object.keys(input)[0]];
+        }
+    }
+    return input;
 }
 
 export default { def, config: setConfig, runList };
