@@ -6,7 +6,7 @@ type geminim = { parts: [{ text: string }]; role: "user" | "model" }[];
 type aiconfig = { type: "chatgpt" | "gemini"; key?: string; url?: string; option?: Object; insertV?: boolean };
 
 let config: aiconfig;
-const system = `请你扮演一个计算机函数，下面会给出若干函数定义，对于每个函数，你接受可能存在的输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型。函数只返回输出模版JSON`;
+const system = `请你扮演一个计算机函数，下面会给出若干函数定义，对于每个函数，你接受可能存在的输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型。需求中使用$来标记参数名。函数只返回输出模版JSON`;
 
 function setConfig(_config: aiconfig) {
     config = _config;
