@@ -3,10 +3,10 @@
 type aim = { role: "system" | "user" | "assistant"; content: { text: string } }[];
 type chatgptm = { role: "system" | "user" | "assistant"; content: string }[];
 type geminim = { parts: [{ text: string }]; role: "user" | "model" }[];
-type aiconfig = { type: "chatgpt" | "gemini"; key?: string; url?: string; option?: Object };
+type aiconfig = { type: "chatgpt" | "gemini"; key?: string; url?: string; option?: Object; insertV?: boolean };
 
 let config: aiconfig;
-const system = `请你扮演一个计算机函数，下面会给出若干函数定义，对于每个函数，你接受输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型。需求使用$变量名来引用变量。函数只返回输出模版JSON`;
+const system = `请你扮演一个计算机函数，下面会给出若干函数定义，对于每个函数，你接受可能存在的输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型。函数只返回输出模版JSON`;
 
 function setConfig(_config: aiconfig) {
     config = _config;
@@ -201,14 +201,30 @@ class def {
     public run(input: obj | string) {
         let messages: aim = [];
         messages.push({ role: "system", content: { text: system } });
-        let inputObj = {};
-        if (typeof input === "string") inputObj = { input: input };
-        else inputObj = input;
         messages.push({
             role: "user",
-            content: { text: `定义函数：\n${this.getText()}\n输入${JSON.stringify(inputObj)}` },
+            content: { text: getRunText(this.getText(), input, this.input) },
         });
         return ai(messages, config);
+    }
+}
+
+function getRunText(t: string, input: obj | string, sourceInput: obj) {
+    let inputObj = {};
+    if (typeof input === "string") inputObj[Object.keys(sourceInput)[0]] = input;
+    else inputObj = input;
+    if (config.insertV) {
+        const r = new RegExp(
+            `(${Object.keys(inputObj)
+                .map((i) => `\\$${i}`)
+                .join("|")})`,
+            "g"
+        );
+        t = t.replace(/输入定义.+/, "");
+        t = t.replaceAll(r, (_, i: string) => inputObj[i.replace("$", "")]);
+        return `运行：\n${t}`;
+    } else {
+        return `定义函数：\n${t}\n输入${JSON.stringify(inputObj)}`;
     }
 }
 
@@ -217,12 +233,9 @@ async function runList(functions: { fun: def; input: obj | string }[]) {
     let messages: aim = [];
     messages.push({ role: "system", content: { text: system } });
     for (let f of functions) {
-        let inputObj = {};
-        if (typeof f.input === "string") inputObj = { input: f.input };
-        else inputObj = f.input;
         messages.push({
             role: "user",
-            content: { text: `定义函数：\n${f.fun.getText()}\n输入${JSON.stringify(inputObj)}` },
+            content: { text: getRunText(f.fun.getText(), f.input, f.fun.input) },
         });
     }
     const len = functions.length;
