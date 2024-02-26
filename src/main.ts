@@ -224,7 +224,7 @@ function getRunText(t: string, input: obj | string, sourceInput: obj) {
         t = t.replaceAll(r, (_, i: string) => inputObj[i.replace("$", "")]);
         return `运行：\n${t}`;
     } else {
-        return `定义函数：\n${t}\n输入${JSON.stringify(inputObj)}`;
+        return `运行函数：\n输入${JSON.stringify(inputObj)}\n${t}`; // 输入在定义前，符合认知逻辑
     }
 }
 
