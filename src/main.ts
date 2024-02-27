@@ -198,7 +198,7 @@ class def {
         return text;
     }
 
-    public run(input: obj | string) {
+    public run(input?: obj | string) {
         let messages: aim = [];
         messages.push({ role: "system", content: { text: system } });
         messages.push({
@@ -211,8 +211,9 @@ class def {
 
 function getRunText(t: string, input: obj | string, sourceInput: obj) {
     let inputObj = {};
-    if (typeof input === "string") inputObj[Object.keys(sourceInput)[0]] = input;
-    else inputObj = input;
+    if (sourceInput)
+        if (typeof input === "string") inputObj[Object.keys(sourceInput)[0]] = input;
+        else inputObj = input;
     if (config.insertV) {
         const r = new RegExp(
             `(${Object.keys(inputObj)
@@ -224,7 +225,8 @@ function getRunText(t: string, input: obj | string, sourceInput: obj) {
         t = t.replaceAll(r, (_, i: string) => inputObj[i.replace("$", "")]);
         return `运行：\n${t}`;
     } else {
-        return `运行函数：\n输入${JSON.stringify(inputObj)}\n${t}`; // 输入在定义前，符合认知逻辑
+        if (sourceInput) return `运行函数：\n输入${JSON.stringify(inputObj)}\n${t}`; // 输入在定义前，符合认知逻辑
+        else return `运行函数：${JSON.stringify(inputObj)}\n${t}`;
     }
 }
 
