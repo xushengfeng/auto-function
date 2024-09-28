@@ -2,7 +2,7 @@
 
 type aim = {
     role: "system" | "user" | "assistant";
-    content: { text: string };
+    c: string;
 }[];
 type chatgptm = { role: "system" | "user" | "assistant"; content: string }[];
 type geminim = { parts: [{ text: string }]; role: "user" | "model" }[];
@@ -48,7 +48,7 @@ function confChatgpt(m: aim, config: aiconfig) {
     }
     const messages: chatgptm = [];
     for (const i of m) {
-        messages.push({ role: i.role, content: i.content.text });
+        messages.push({ role: i.role, content: i.c });
     }
     // @ts-ignore
     con.messages = messages;
@@ -70,7 +70,7 @@ function confGemini(m: aim, config: aiconfig) {
             user: "user",
             assistant: "model",
         }[i.role] as "user" | "model";
-        geminiPrompt.push({ parts: [{ text: i.content.text }], role });
+        geminiPrompt.push({ parts: [{ text: i.c }], role });
     }
     // @ts-ignore
     con.contents = geminiPrompt;
@@ -243,10 +243,10 @@ class def {
 
     public run(input?: obj | string) {
         const messages: aim = [];
-        messages.push({ role: "system", content: { text: system } });
+        messages.push({ role: "system", c: system });
         messages.push({
             role: "user",
-            content: { text: getRunText(this.getText(), input, this.input) },
+            c: getRunText(this.getText(), input, this.input),
         });
         return ai(messages, config);
     }
@@ -275,11 +275,11 @@ function getRunText(_t: string, input: obj | string, sourceInput: obj) {
 /** 合并多个fun，以减少并发请求，但对token数影响不大 */
 async function runList(functions: { fun: def; input: obj | string }[]) {
     const messages: aim = [];
-    messages.push({ role: "system", content: { text: system } });
+    messages.push({ role: "system", c: system });
     for (const f of functions) {
         messages.push({
             role: "user",
-            content: { text: getRunText(f.fun.getText(), f.input, f.fun.input) },
+            c: getRunText(f.fun.getText(), f.input, f.fun.input),
         });
     }
     const len = functions.length;
@@ -290,9 +290,7 @@ async function runList(functions: { fun: def; input: obj | string }[]) {
     const tt = t.join(",");
     messages.push({
         role: "user",
-        content: {
-            text: `上面的${len}个函数分别有${len}个输出，请返回一个JSON数组，数组按顺序包含上述${len}个函数的返回输出\n[${tt}]`,
-        },
+        c: `上面的${len}个函数分别有${len}个输出，请返回一个JSON数组，数组按顺序包含上述${len}个函数的返回输出\n[${tt}]`,
     });
     const r = ai(messages, config);
     const text = await r.result;
@@ -318,25 +316,25 @@ async function boolean(input: string | string[], tj = "为真") {
     }
     if (typeof input === "string") {
         const m: aim = [
-            { role: "user", content: { text: "1+1=2 为真吗？" } },
-            { role: "user", content: { text: "请回答true或false" } },
-            { role: "assistant", content: { text: "true" } },
-            { role: "user", content: { text: "2+2=5 为真吗？" } },
-            { role: "user", content: { text: "请回答true或false" } },
-            { role: "assistant", content: { text: "false" } },
-            { role: "user", content: { text: `${input} 为真吗？` } },
-            { role: "user", content: { text: "请回答true或false" } },
+            { role: "user", c: "1+1=2 为真吗？" },
+            { role: "user", c: "请回答true或false" },
+            { role: "assistant", c: "true" },
+            { role: "user", c: "2+2=5 为真吗？" },
+            { role: "user", c: "请回答true或false" },
+            { role: "assistant", c: "false" },
+            { role: "user", c: `${input} 为真吗？` },
+            { role: "user", c: "请回答true或false" },
         ];
         const r = await aiRaw(m);
 
         return isTrue(r);
     }
     const m: aim = [
-        { role: "user", content: { text: "下面有若干句话，请判断他们为真" } },
-        { role: "user", content: { text: "返回true或false，一行一个结果，无须解释" } },
-        { role: "user", content: { text: "1+1=2\n2+2=5\n3+3=6" } },
-        { role: "assistant", content: { text: "true\nfalse\ntrue" } },
-        { role: "user", content: { text: input.map((i) => `${i} ${tj}?`).join("\n") } },
+        { role: "user", c: "下面有若干句话，请判断他们为真" },
+        { role: "user", c: "返回true或false，一行一个结果，无须解释" },
+        { role: "user", c: "1+1=2\n2+2=5\n3+3=6" },
+        { role: "assistant", c: "true\nfalse\ntrue" },
+        { role: "user", c: input.map((i) => `${i} ${tj}?`).join("\n") },
     ];
     const r = await aiRaw(m);
     console.log(r);
