@@ -1,19 +1,29 @@
 /// <reference types="vite/client" />
 
-type aim = { role: "system" | "user" | "assistant"; content: { text: string } }[];
+type aim = {
+    role: "system" | "user" | "assistant";
+    content: { text: string };
+}[];
 type chatgptm = { role: "system" | "user" | "assistant"; content: string }[];
 type geminim = { parts: [{ text: string }]; role: "user" | "model" }[];
-type aiconfig = { type: "chatgpt" | "gemini"; key?: string; url?: string; option?: Object; insertV?: boolean };
+type aiconfig = {
+    type: "chatgpt" | "gemini";
+    key?: string;
+    url?: string;
+    option?: Record<string, unknown>;
+    insertV?: boolean;
+};
 
 let config: aiconfig;
-const system = `请你扮演一个计算机函数，下面会给出若干函数定义，对于每个函数，你接受可能存在的输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型。需求中使用$来标记参数名。函数只返回输出模版JSON`;
+const system =
+    "请你扮演一个计算机函数，下面会给出若干函数定义，对于每个函数，你接受可能存在的输入，根据需求，返回能被机器解析的JSON输出。其中，输入定义和输出模版均以JSON表示，key为参数名，value为解释和可能存在的typescript类型。需求中使用$来标记参数名。函数只返回输出模版JSON";
 
 function setConfig(_config: aiconfig) {
     config = _config;
 }
 
-let chatgpt = {
-    url: `https://api.openai.com/v1/chat/completions`,
+const chatgpt = {
+    url: "https://api.openai.com/v1/chat/completions",
     headers: {
         "content-type": "application/json",
     },
@@ -21,76 +31,79 @@ let chatgpt = {
         model: "gpt-3.5-turbo",
     },
 };
-let gemini = {
+const gemini = {
     url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
     headers: { "content-type": "application/json" },
     config: {},
 };
 
 function confChatgpt(m: aim, config: aiconfig) {
-    let url = config.url || chatgpt.url;
-    let headers = chatgpt.headers;
-    let con = {};
-    if (config.key) headers["Authorization"] = `Bearer ${config.key}`;
-    for (let i in config.option) {
+    const url = config.url || chatgpt.url;
+    const headers = chatgpt.headers;
+    const con = {};
+    // @ts-ignore
+    if (config.key) headers.Authorization = `Bearer ${config.key}`;
+    for (const i in config.option) {
         con[i] = config.option[i];
     }
-    let messages: chatgptm = [];
-    for (let i of m) {
+    const messages: chatgptm = [];
+    for (const i of m) {
         messages.push({ role: i.role, content: i.content.text });
     }
-    con["messages"] = messages;
+    // @ts-ignore
+    con.messages = messages;
     return { url: url, headers: headers, con: con };
 }
 
 function confGemini(m: aim, config: aiconfig) {
-    let con = {};
-    let newurl = new URL(config.url || gemini.url);
+    const con = {};
+    const newurl = new URL(config.url || gemini.url);
     if (config.key) newurl.searchParams.set("key", config.key);
-    let url = newurl.toString();
-    for (let i in config.option) {
+    const url = newurl.toString();
+    for (const i in config.option) {
         con[i] = config.option[i];
     }
-    let geminiPrompt: geminim = [];
-    for (let i of m) {
-        let role: (typeof geminiPrompt)[0]["role"];
-        role = { system: "user", user: "user", assistant: "model" }[i.role] as "user" | "model";
+    const geminiPrompt: geminim = [];
+    for (const i of m) {
+        const role = {
+            system: "user",
+            user: "user",
+            assistant: "model",
+        }[i.role] as "user" | "model";
         geminiPrompt.push({ parts: [{ text: i.content.text }], role });
     }
-    con["contents"] = geminiPrompt;
+    // @ts-ignore
+    con.contents = geminiPrompt;
     return { url: url, headers: gemini.headers, con: con };
 }
 
-function postAi(
+async function postAi(
     url: string,
     headers: HeadersInit,
     con: object,
     signal: AbortSignal,
     type: "chatgpt" | "gemini",
-    tryN: number
+    tryN: number,
 ) {
-    return new Promise(async (re: (json: unknown) => void, rj: (err: Error) => void) => {
-        try {
-            const t = await (
-                await fetch(url, {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify(con),
-                    signal: signal,
-                })
-            ).json();
-            re(checkAiResult(t, url, headers, con, signal, type, tryN));
-        } catch (e) {
-            if (e.name === "AbortError") {
-                return;
-            } else {
-                rj(e);
-            }
+    try {
+        const t = await (
+            await fetch(url, {
+                method: "POST",
+                headers,
+                body: JSON.stringify(con),
+                signal: signal,
+            })
+        ).json();
+        return checkAiResult(t, url, headers, con, signal, type, tryN);
+    } catch (e) {
+        if (e.name === "AbortError") {
+            return;
         }
-    });
+        throw e;
+    }
 }
 
-function getAiRaw(t: any, type: "chatgpt" | "gemini") {
+function getAiRaw(t, type: "chatgpt" | "gemini") {
     let text = "";
     if (type === "chatgpt") {
         text = t.choices[0].message.content;
@@ -111,17 +124,16 @@ function checkAiResult(
     con: object,
     signal: AbortSignal,
     type: "chatgpt" | "gemini",
-    tryN: number
+    tryN: number,
 ) {
-    let text = getAiRaw(t, type);
+    const text = getAiRaw(t, type);
     try {
         return JSON.parse(text) as unknown;
     } catch (error) {
         if (tryN < 3) {
             return postAi(url, headers, con, signal, type, tryN + 1);
-        } else {
-            throw "无法解析";
         }
+        throw "无法解析";
     }
 }
 
@@ -130,18 +142,18 @@ function ai(m: aim, config: aiconfig) {
     let headers = {};
     let con = {};
     if (config.type === "chatgpt") {
-        let conf = confChatgpt(m, config);
+        const conf = confChatgpt(m, config);
         url = conf.url;
         headers = conf.headers;
         con = conf.con;
     }
     if (config.type === "gemini") {
-        let conf = confGemini(m, config);
+        const conf = confGemini(m, config);
         url = conf.url;
         headers = conf.headers;
         con = conf.con;
     }
-    let abort = new AbortController();
+    const abort = new AbortController();
     return {
         stop: abort,
         result: postAi(url, headers, con, abort.signal, config.type, 1),
@@ -161,7 +173,12 @@ class def {
     public aiConfig: aiconfig;
     public system = system;
 
-    constructor(op: { input?: obj; output?: unknown; script: St; test?: testType | testType[] }) {
+    constructor(op: {
+        input?: obj;
+        output?: unknown;
+        script: St;
+        test?: testType | testType[];
+    }) {
         this.input = op.input;
         this.output = op.output;
         this.script = op.script;
@@ -171,7 +188,7 @@ class def {
 
     private arrayToList(arr: string[] | string): string {
         if (Array.isArray(arr)) return arr.map((i) => `- ${i}`).join("\n");
-        else return arr;
+        return arr;
     }
 
     public getText(): string {
@@ -186,11 +203,11 @@ class def {
             } else {
                 test = this.test;
             }
-        for (let t of test) {
+        for (const t of test) {
             text += [
-                `\n这是测试样例，对于输入`,
+                "\n这是测试样例，对于输入",
                 `\`\`\`\n${JSON.stringify(t.input)}\n\`\`\``,
-                `应当返回`,
+                "应当返回",
                 `\`\`\`\n${JSON.stringify(t.output)}\n\`\`\``,
             ].join("\n");
         }
@@ -199,7 +216,7 @@ class def {
     }
 
     public run(input?: obj | string) {
-        let messages: aim = [];
+        const messages: aim = [];
         messages.push({ role: "system", content: { text: system } });
         messages.push({
             role: "user",
@@ -209,7 +226,7 @@ class def {
     }
 }
 
-function getRunText(t: string, input: obj | string, sourceInput: obj) {
+function getRunText(_t: string, input: obj | string, sourceInput: obj) {
     let inputObj = {};
     if (sourceInput)
         if (typeof input === "string") inputObj[Object.keys(sourceInput)[0]] = input;
@@ -219,22 +236,21 @@ function getRunText(t: string, input: obj | string, sourceInput: obj) {
             `(${Object.keys(inputObj)
                 .map((i) => `\\$${i}`)
                 .join("|")})`,
-            "g"
+            "g",
         );
-        t = t.replace(/输入定义.+/, "");
+        let t = _t.replace(/输入定义.+/, "");
         t = t.replaceAll(r, (_, i: string) => inputObj[i.replace("$", "")]);
         return `运行：\n${t}`;
-    } else {
-        if (sourceInput) return `运行函数：\n输入${JSON.stringify(inputObj)}\n${t}`; // 输入在定义前，符合认知逻辑
-        else return `运行函数：${JSON.stringify(inputObj)}\n${t}`;
     }
+    if (sourceInput) return `运行函数：\n输入${JSON.stringify(inputObj)}\n${_t}`;
+    return `运行函数：${JSON.stringify(inputObj)}\n${_t}`;
 }
 
 /** 合并多个fun，以减少并发请求，但对token数影响不大 */
 async function runList(functions: { fun: def; input: obj | string }[]) {
-    let messages: aim = [];
+    const messages: aim = [];
     messages.push({ role: "system", content: { text: system } });
-    for (let f of functions) {
+    for (const f of functions) {
         messages.push({
             role: "user",
             content: { text: getRunText(f.fun.getText(), f.input, f.fun.input) },
@@ -242,7 +258,7 @@ async function runList(functions: { fun: def; input: obj | string }[]) {
     }
     const len = functions.length;
     const t: string[] = [];
-    for (let i in functions) {
+    for (const i in functions) {
         t.push(`返回${Number(i) + 1}`);
     }
     const tt = t.join(",");
@@ -257,7 +273,7 @@ async function runList(functions: { fun: def; input: obj | string }[]) {
     return parseRunList(text);
 }
 
-function parseRunList(input: any) {
+function parseRunList(input) {
     if (!Array.isArray(input)) {
         if (Object.keys(input).length === 1) {
             return input[Object.keys(input)[0]];
