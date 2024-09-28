@@ -84,7 +84,7 @@ async function postAi(
     signal: AbortSignal,
     type: "chatgpt" | "gemini",
     tryN: number,
-) {
+): Promise<unknown> {
     try {
         const t = await (
             await fetch(url, {
@@ -97,7 +97,7 @@ async function postAi(
         return checkAiResult(t, url, headers, con, signal, type, tryN);
     } catch (e) {
         if (e.name === "AbortError") {
-            return;
+            return new Promise(() => {});
         }
         throw e;
     }
@@ -110,6 +110,10 @@ function getAiRaw(t, type: "chatgpt" | "gemini") {
     } else {
         text = t.candidates[0].content.parts[0].text;
     }
+    return text;
+}
+function getAiJSON(t, type: "chatgpt" | "gemini") {
+    let text = getAiRaw(t, type);
     if (text.startsWith("```json")) {
         const l = text.split("\n");
         text = l.slice(1, l.length - 1).join("\n");
@@ -126,7 +130,7 @@ function checkAiResult(
     type: "chatgpt" | "gemini",
     tryN: number,
 ) {
-    const text = getAiRaw(t, type);
+    const text = getAiJSON(t, type);
     try {
         return JSON.parse(text) as unknown;
     } catch (error) {
@@ -135,6 +139,28 @@ function checkAiResult(
         }
         throw "无法解析";
     }
+}
+
+async function aiRaw(m: aim) {
+    let url = "";
+    let headers = {};
+    let con = {};
+    if (config.type === "chatgpt") {
+        const conf = confChatgpt(m, config);
+        url = conf.url;
+        headers = conf.headers;
+        con = conf.con;
+    }
+    if (config.type === "gemini") {
+        const conf = confGemini(m, config);
+        url = conf.url;
+        headers = conf.headers;
+        con = conf.con;
+    }
+    return getAiRaw(
+        await (await fetch(url, { headers, method: "POST", body: JSON.stringify(con) })).json(),
+        config.type,
+    );
 }
 
 function ai(m: aim, config: aiconfig) {
@@ -282,4 +308,40 @@ function parseRunList(input) {
     return input;
 }
 
-export default { def, config: setConfig, runList };
+async function boolean(input: string[], tj?: string): Promise<boolean[]>;
+async function boolean(input: string): Promise<boolean>;
+async function boolean(input: string | string[], tj = "为真") {
+    function isTrue(i: string) {
+        if (i.includes("True") || i.includes("true")) return true;
+        if (i.includes("False") || i.includes("false")) return false;
+        return undefined;
+    }
+    if (typeof input === "string") {
+        const m: aim = [
+            { role: "user", content: { text: "1+1=2 为真吗？" } },
+            { role: "user", content: { text: "请回答true或false" } },
+            { role: "assistant", content: { text: "true" } },
+            { role: "user", content: { text: "2+2=5 为真吗？" } },
+            { role: "user", content: { text: "请回答true或false" } },
+            { role: "assistant", content: { text: "false" } },
+            { role: "user", content: { text: `${input} 为真吗？` } },
+            { role: "user", content: { text: "请回答true或false" } },
+        ];
+        const r = await aiRaw(m);
+
+        return isTrue(r);
+    }
+    const m: aim = [
+        { role: "user", content: { text: "下面有若干句话，请判断他们为真" } },
+        { role: "user", content: { text: "返回true或false，一行一个结果，无须解释" } },
+        { role: "user", content: { text: "1+1=2\n2+2=5\n3+3=6" } },
+        { role: "assistant", content: { text: "true\nfalse\ntrue" } },
+        { role: "user", content: { text: input.map((i) => `${i} ${tj}?`).join("\n") } },
+    ];
+    const r = await aiRaw(m);
+    console.log(r);
+
+    return r.split("\n").map((i) => isTrue(i));
+}
+
+export default { def, config: setConfig, runList, boolean };
